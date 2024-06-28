@@ -6,7 +6,7 @@
 4. open this folder in a terminal, run `pip install -r requirements.txt`
 5. add the `plot.py` inside you model folder
 5. in the `plot.py`, change the observation and histrory file name according to your need. (e.g. `*.obs`  and `trih-*.nc`)
-6. start the run of your model and after the model keeps running, run `python plot.py` in your terminal. You will see the changing plot.
+6. start the run of your model and after the model keeps running, run `plot.py`. You will see the changing plot.
 
 (note: `*` means anything)
 
