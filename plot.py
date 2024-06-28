@@ -14,7 +14,6 @@ parser.add_argument('--obs', type=str, default='coarser.obs', help='')
 parser.add_argument('--nc', type=str, default='trih-coarser.nc', help='A')
 args = parser.parse_args()
 
-
 # argsment = namedtuple('filename', ('obs', 'nc'))
 # args = argsment(obs='coarser.obs', nc='trih-coarser.nc')
 
