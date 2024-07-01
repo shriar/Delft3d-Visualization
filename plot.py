@@ -10,10 +10,10 @@ from sklearn.metrics import r2_score
 import argparse
 import glob
 
-parser = argparse.ArgumentParser(description='description')
-parser.add_argument('--obs', type=str, default='coarser.obs', help='')
-parser.add_argument('--nc', type=str, default='trih-coarser.nc', help='A')
-args = parser.parse_args()
+# parser = argparse.ArgumentParser(description='description')
+# parser.add_argument('--obs', type=str, default='coarser.obs', help='')
+# parser.add_argument('--nc', type=str, default='trih-coarser.nc', help='A')
+# args = parser.parse_args()
 
 # argsment = namedtuple('filename', ('obs', 'nc'))
 # args = argsment(obs='coarser.obs', nc='trih-coarser.nc')
