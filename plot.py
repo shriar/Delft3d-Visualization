@@ -105,7 +105,7 @@ def plot(obs_station_name, model_interpolated, obs_interpolated, fig, axs):
         axs[i].set_title(name)
         axs[i].set_ylabel('WL')
         axs[i].tick_params(axis='x', rotation=40)
-        axs[i].legend()
+        axs[i].legend(loc='upper right')
 
         axs[i].text(0.45, 0.05, f'R² = {r2:.3f}', transform=axs[i].transAxes, fontsize=10,
                     verticalalignment='top', color='r')
