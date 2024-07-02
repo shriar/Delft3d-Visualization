@@ -14,7 +14,7 @@
 
 ## TODO
 - [ ] support of csv as obserbation file 
-- [ ] changing of number of plot according to monitoring point
+- [x] changing of number of plot according to monitoring point
 
 (note: `*` means anything)
 ![img](img1.png)

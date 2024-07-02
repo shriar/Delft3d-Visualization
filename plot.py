@@ -9,14 +9,7 @@ from watchdog.events import FileSystemEventHandler
 from sklearn.metrics import r2_score
 import argparse
 import glob
-
-# parser = argparse.ArgumentParser(description='description')
-# parser.add_argument('--obs', type=str, default='coarser.obs', help='')
-# parser.add_argument('--nc', type=str, default='trih-coarser.nc', help='A')
-# args = parser.parse_args()
-
-# argsment = namedtuple('filename', ('obs', 'nc'))
-# args = argsment(obs='coarser.obs', nc='trih-coarser.nc')
+import math
 
 def extract_station_name(file_path):
     obs_station_name = []
@@ -133,12 +126,18 @@ def update_plot(nc_file, obs_file, fig, axs):
     model_interpolated, obs_interpolated = interpolate(obs_df, model_df)
     plot(obs_station_name, model_interpolated, obs_interpolated, fig, axs)
 
-fig, axs = plt.subplots(2, 2, figsize=(12, 10))
 nc_files = glob.glob('trih*.nc')
 obs_files = glob.glob('*.obs')
-if len(obs_files) == 1:
+
+if len(obs_files) == 1 and len(nc_files) == 1:
     nc_file = nc_files[0]
     obs_file = obs_files[0]
+else:
+    raise ValueError("Please specify exactly one .obs and one .nc file")
+
+obs_station_name = extract_station_name(obs_file)
+M = math.ceil(len(obs_station_name) / 2)
+fig, axs = plt.subplots(M, 2, figsize=(12, 10))
 
 watcher = Watcher(nc_file, obs_file, fig, axs)
 observer = Observer()
