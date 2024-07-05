@@ -17,4 +17,4 @@
 - [x] changing of number of plot according to monitoring point
 
 (note: `*` means anything)
-![img](others\img1.png)
+![img](others/img1.png)
