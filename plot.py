@@ -7,9 +7,9 @@ from collections import namedtuple
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from sklearn.metrics import r2_score
-import argparse
-import glob
-import math
+
+argsment = namedtuple('filename', ('obs', 'nc'))
+args = argsment(obs='coarser.obs', nc='trih-coarser.nc')
 
 def extract_station_name(file_path):
     obs_station_name = []
@@ -57,16 +57,11 @@ def make_model_df(model_dataset, obs_station_name):
     return model_df
 
 def clipped_dataframe(model_df, obs_df):
-    start_time = min(model_df['Time'][0], obs_df['Time'][0])
-    model_end_date = model_df['Time'].iloc[-1]
-    obs_end_date = obs_df['Time'].iloc[-1]
+    start_time = max(model_df['Time'][0], obs_df['Time'][0])
+    end_date = min(model_df['Time'].iloc[-1], obs_df['Time'].iloc[-1])
 
-    if model_end_date > obs_end_date:
-        end_time = obs_end_date
-        model_df = model_df[(model_df['Time'] >= start_time) & (model_df['Time'] <= end_time)]
-    elif model_end_date < obs_end_date:
-        end_time = model_end_date
-        obs_df = obs_df[(obs_df['Time'] >= start_time) & (obs_df['Time'] <= end_time)]
+    model_df = model_df[(model_df['Time'] >= start_time) & (model_df['Time'] <= end_date)]
+    obs_df = obs_df[(obs_df['Time'] >= start_time) & (obs_df['Time'] <= end_date)]
 
     return model_df, obs_df
 
@@ -92,60 +87,46 @@ def plot(obs_station_name, model_interpolated, obs_interpolated, fig, axs):
         obs = obs_interpolated[name]
         r2 = r2_score(obs, model)
 
-        axs[i].plot(model, label=f"model")
-        axs[i].plot(obs, label=f"observed", linestyle='none', marker='o', markersize=2, color='g')
+        axs[i].plot(model, label=f"model", color='blue', linewidth=1)
+        axs[i].plot(obs, label=f"observed", linestyle='none', marker='o', markersize=1.5, color='red')
 
         axs[i].set_title(name)
         axs[i].set_ylabel('WL')
         axs[i].tick_params(axis='x', rotation=40)
         axs[i].legend(loc='upper right')
 
-        axs[i].text(0.45, 0.05, f'R² = {r2:.3f}', transform=axs[i].transAxes, fontsize=10,
-                    verticalalignment='top', color='r')
+        axs[i].text(0.95, 0.05, f'R² = {r2:.3f}', transform=axs[i].transAxes, fontsize=10, verticalalignment='bottom', horizontalalignment='right')
 
     plt.tight_layout()
     plt.draw()
 
 class Watcher(FileSystemEventHandler):
-    def __init__(self, nc_file, obs_file, fig, axs):
-        self.nc_file = nc_file
-        self.obs_file = obs_file
+    def __init__(self, args, fig, axs):
+        self.args = args
         self.fig = fig
         self.axs = axs
 
     def on_modified(self, event):
-        if event.src_path.endswith(self.nc_file):
-            update_plot(self.nc_file, self.obs_file, self.fig, self.axs)
+        if event.src_path.endswith(self.args.nc):
+            update_plot(self.args, self.fig, self.axs)
 
-def update_plot(nc_file, obs_file, fig, axs):
-    obs_station_name = extract_station_name(obs_file)
-    model_dataset = xr.open_dataset(nc_file)
+def update_plot(args, fig, axs):
+    obs_station_name = extract_station_name(args.obs)
+    model_dataset = xr.open_dataset(args.nc)
     obs_df = make_obs_df(obs_station_name)
     model_df = make_model_df(model_dataset, obs_station_name)
     model_df, obs_df = clipped_dataframe(model_df, obs_df)
     model_interpolated, obs_interpolated = interpolate(obs_df, model_df)
     plot(obs_station_name, model_interpolated, obs_interpolated, fig, axs)
 
-nc_files = glob.glob('trih*.nc')
-obs_files = glob.glob('*.obs')
-
-if len(obs_files) == 1 and len(nc_files) == 1:
-    nc_file = nc_files[0]
-    obs_file = obs_files[0]
-else:
-    raise ValueError("Please specify exactly one .obs and one .nc file")
-
-obs_station_name = extract_station_name(obs_file)
-M = math.ceil(len(obs_station_name) / 2)
-fig, axs = plt.subplots(M, 2, figsize=(12, 10))
-
-watcher = Watcher(nc_file, obs_file, fig, axs)
+fig, axs = plt.subplots(2, 2, figsize=(12, 10))
+watcher = Watcher(args, fig, axs)
 observer = Observer()
 observer.schedule(watcher, path='.', recursive=False)
 observer.start()
 
 # Initial plot before starting the observer
-update_plot(nc_file, obs_file, fig, axs)
+update_plot(args, fig, axs)
 
 try:
     plt.show()
