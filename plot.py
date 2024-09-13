@@ -2,14 +2,12 @@ import xarray as xr
 import matplotlib.pyplot as plt
 import pandas as pd
 import io
-import time
-from collections import namedtuple
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from sklearn.metrics import r2_score
 
-argsment = namedtuple('filename', ('obs', 'nc'))
-args = argsment(obs='coarser.obs', nc='trih-coarser.nc')
+import glob
+import math
 
 def extract_station_name(file_path):
     obs_station_name = []
@@ -88,7 +86,7 @@ def plot(obs_station_name, model_interpolated, obs_interpolated, fig, axs):
         r2 = r2_score(obs, model)
 
         axs[i].plot(model, label=f"model", color='blue', linewidth=1)
-        axs[i].plot(obs, label=f"observed", linestyle='none', marker='o', markersize=1.5, color='red')
+        axs[i].plot(obs, label=f"observed", linestyle='none', marker='o', markersize=2, color='red')
 
         axs[i].set_title(name)
         axs[i].set_ylabel('WL')
@@ -101,32 +99,45 @@ def plot(obs_station_name, model_interpolated, obs_interpolated, fig, axs):
     plt.draw()
 
 class Watcher(FileSystemEventHandler):
-    def __init__(self, args, fig, axs):
-        self.args = args
+    def __init__(self, nc_file, obs_file, fig, axs):
+        self.nc_file = nc_file
+        self.obs_file = obs_file
         self.fig = fig
         self.axs = axs
 
     def on_modified(self, event):
-        if event.src_path.endswith(self.args.nc):
-            update_plot(self.args, self.fig, self.axs)
+        if event.src_path.endswith(self.nc_file):
+            update_plot(self.nc_file, self.obs_file, self.fig, self.axs)
 
-def update_plot(args, fig, axs):
-    obs_station_name = extract_station_name(args.obs)
-    model_dataset = xr.open_dataset(args.nc)
+def update_plot(nc_file, obs_file, fig, axs):
+    obs_station_name = extract_station_name(obs_file)
+    model_dataset = xr.open_dataset(nc_file)
     obs_df = make_obs_df(obs_station_name)
     model_df = make_model_df(model_dataset, obs_station_name)
     model_df, obs_df = clipped_dataframe(model_df, obs_df)
     model_interpolated, obs_interpolated = interpolate(obs_df, model_df)
     plot(obs_station_name, model_interpolated, obs_interpolated, fig, axs)
 
-fig, axs = plt.subplots(2, 2, figsize=(12, 10))
-watcher = Watcher(args, fig, axs)
+nc_files = glob.glob('trih*.nc')
+obs_files = glob.glob('*.obs')
+
+if len(obs_files) == 1 and len(nc_files) == 1:
+    nc_file = nc_files[0]
+    obs_file = obs_files[0]
+else:
+    raise ValueError("Please specify exactly one .obs and one .nc file")
+
+obs_station_name = extract_station_name(obs_file)
+M = math.ceil(len(obs_station_name) / 2)
+fig, axs = plt.subplots(M, 2, figsize=(12, 10))
+
+watcher = Watcher(nc_file, obs_file, fig, axs)
 observer = Observer()
 observer.schedule(watcher, path='.', recursive=False)
 observer.start()
 
 # Initial plot before starting the observer
-update_plot(args, fig, axs)
+update_plot(nc_file, obs_file, fig, axs)
 
 try:
     plt.show()
