@@ -1,3 +1,5 @@
 *.nc
 *.tek
 *.obs
+*.csv
+*.png
