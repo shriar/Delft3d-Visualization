@@ -2,3 +2,4 @@ xarray
 matplotlib
 pandas
 scikit-learn
+netcdf4
