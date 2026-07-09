@@ -1,0 +1,8 @@
+folium
+pyproj
+xarray
+numpy
+pandas
+matplotlib
+scikit-learn
+plotly

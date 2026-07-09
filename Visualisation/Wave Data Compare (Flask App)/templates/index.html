@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wave Data Comparison</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.35.0/plotly.min.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box
+    }
+
+    :root {
+      --bg: #f5f6fa;
+      --surface: #ffffff;
+      --surface2: #f0f1f5;
+      --border: #e0e2ea;
+      --accent: #4f46e5;
+      --accent2: #0d9488;
+      --text: #1e293b;
+      --text2: #64748b;
+      --danger: #ef4444;
+      --radius: 12px
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh
+    }
+
+    header {
+      background: #ffffff;
+      border-bottom: 1px solid var(--border);
+      padding: 20px 32px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, .06)
+    }
+
+    header h1 {
+      font-size: 1.4rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent
+    }
+
+    header span {
+      font-size: .85rem;
+      color: var(--text2)
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      min-height: calc(100vh - 70px)
+    }
+
+    .sidebar {
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 20px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 16px
+    }
+
+    .panel {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px
+    }
+
+    .panel-title {
+      font-size: .75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: var(--accent);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px
+    }
+
+    .panel-title.green {
+      color: var(--accent2)
+    }
+
+    label {
+      display: block;
+      font-size: .8rem;
+      color: var(--text2);
+      margin-bottom: 4px;
+      font-weight: 500
+    }
+
+    select,
+    input[type=datetime-local],
+    input[type=text] {
+      width: 100%;
+      background: #fff;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 8px 10px;
+      border-radius: 8px;
+      font-size: .82rem;
+      font-family: inherit;
+      margin-bottom: 10px;
+      transition: border .2s
+    }
+
+    select:focus,
+    input:focus {
+      outline: none;
+      border-color: var(--accent)
+    }
+
+    .btn {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: var(--radius);
+      font-family: inherit;
+      font-weight: 600;
+      font-size: .9rem;
+      cursor: pointer;
+      transition: all .25s
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), #6366f1);
+      color: #fff
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(79, 70, 229, .3)
+    }
+
+    .btn-primary:active {
+      transform: translateY(0)
+    }
+
+    .btn-stats {
+      background: linear-gradient(135deg, var(--accent2), #14b8a6);
+      color: #fff;
+      margin-top: 8px
+    }
+
+    .main {
+      padding: 24px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 20px
+    }
+
+    #tsPlot,
+    #scatterPlot {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      height: 450px;
+      width: 100%;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, .06)
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 12px
+    }
+
+    .stat-card {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+      text-align: center;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, .06)
+    }
+
+    .stat-card .val {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--accent)
+    }
+
+    .stat-card .lbl {
+      font-size: .72rem;
+      color: var(--text2);
+      margin-top: 4px;
+      text-transform: uppercase;
+      letter-spacing: .05em
+    }
+
+    .loading {
+      display: none;
+      text-align: center;
+      padding: 40px;
+      color: var(--text2)
+    }
+
+    .loading.active {
+      display: block
+    }
+
+    .dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin: 0 3px;
+      animation: bounce .6s infinite alternate
+    }
+
+    .dot:nth-child(2) {
+      animation-delay: .2s
+    }
+
+    .dot:nth-child(3) {
+      animation-delay: .4s
+    }
+
+    @keyframes bounce {
+      to {
+        opacity: .3;
+        transform: translateY(-6px)
+      }
+    }
+
+    .badge {
+      display: inline-block;
+      font-size: .65rem;
+      padding: 2px 7px;
+      border-radius: 20px;
+      font-weight: 600
+    }
+
+    .badge-ec {
+      background: rgba(79, 70, 229, .1);
+      color: var(--accent)
+    }
+
+    .badge-dl {
+      background: rgba(13, 148, 136, .1);
+      color: var(--accent2)
+    }
+    #mapContainer {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      display: none;
+      box-shadow: 0 1px 3px rgba(0,0,0,.06);
+    }
+    #locMap {
+      height: 400px;
+      width: 100%;
+      border-radius: 8px;
+      z-index: 1;
+    }
+    .map-marker-label {
+      font-size: 10pt;
+      color: #1e293b;
+      font-weight: 700;
+      text-shadow: 1px 1px 2px white, -1px -1px 2px white, 1px -1px 2px white, -1px 1px 2px white;
+      white-space: nowrap;
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1>🌊 Wave Data Comparison</h1>
+    <span>ECMWF vs Delft3D</span>
+  </header>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="panel">
+        <div class="panel-title">📁 File Selection</div>
+        <label>ECMWF File</label>
+        <select id="ecFile" onchange="loadSelectedFiles()"></select>
+        <label>Delft3D File</label>
+        <select id="dlFile" onchange="loadSelectedFiles()"></select>
+      </div>
+      <div class="panel">
+        <div class="panel-title"><span class="badge badge-ec">ECMWF</span> Source 1</div>
+        <label>Variable</label>
+        <select id="ecVar"></select>
+        <label>Grid Point</label>
+        <select id="ecGrid" onchange="onGridOrStationChange()"></select>
+      </div>
+      <div class="panel">
+        <div class="panel-title green"><span class="badge badge-dl">Delft3D</span> Source 2</div>
+        <label>Variable</label>
+        <select id="dlVar"></select>
+        <label>Station</label>
+        <select id="dlStation" onchange="onGridOrStationChange()"></select>
+      </div>
+      <div class="panel">
+        <div class="panel-title">⏱ Time Range</div>
+        <label>Start</label>
+        <input type="datetime-local" id="tMin" step="3600">
+        <label>End</label>
+        <input type="datetime-local" id="tMax" step="3600">
+      </div>
+      <button class="btn btn-primary" id="btnPlot" onclick="fetchTimeseries()">Compare Time Series</button>
+      <button class="btn btn-stats" id="btnStats" onclick="fetchStats()">Calculate Statistics</button>
+      <div id="exportPanel" style="display:none; margin-top:8px; background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius); padding:12px;">
+        <div class="panel-title" style="color:#059669;">📥 Export Settings</div>
+        <label>Interpolation Interval (minutes)</label>
+        <input type="number" id="exportInterval" value="60" min="1" max="1440" step="1" style="width:100%;">
+        <button class="btn" onclick="exportCSV()" style="background:#059669; color:#fff; margin-top:6px;">📥 Export Interpolated CSV</button>
+      </div>
+      <button class="btn" id="btnToggleLabels" onclick="toggleLabelPanel()"
+        style="background:#e2e8f0; color:var(--text); margin-top:8px;">⚙️ Customize Labels</button>
+
+      <div class="panel" id="labelsPanel" style="display:none; margin-top:8px;">
+        <div class="panel-title">🏷️ Plot Labels</div>
+        <label>Plot Title</label>
+        <input type="text" id="lblTitle" placeholder="Time Series Comparison">
+        <label>X-Axis Name</label>
+        <input type="text" id="lblX" placeholder="Time">
+        <label>Y-Axis Name</label>
+        <input type="text" id="lblY" placeholder="Variable Name [Units]">
+        <label>ECMWF Legend</label>
+        <input type="text" id="lblEcLegend" placeholder="ECMWF: [Var] @ [Location]">
+        <label>Delft3D Legend</label>
+        <input type="text" id="lblDlLegend" placeholder="Delft3D: [Var] @ [Location]">
+        <label>ECMWF Data Point Label (Hover)</label>
+        <input type="text" id="lblEcPoint" placeholder="e.g. Model Point">
+        <label>Delft3D Data Point Label (Hover)</label>
+        <input type="text" id="lblDlPoint" placeholder="e.g. Station Point">
+        <div style="display:flex; align-items:center; gap:8px; margin-top:8px;">
+          <input type="checkbox" id="chkDataLabels" style="width:auto; margin:0;">
+          <label for="chkDataLabels" style="margin:0; cursor:pointer;">Show Values on Data Points</label>
+        </div>
+      </div>
+      <button class="btn" id="btnToggleMap" onclick="toggleMap()"
+        style="background:var(--accent2); color:#fff; margin-top:8px; display:none;">🗺️ Show Locations Map</button>
+    </aside>
+    <main class="main">
+      <div class="loading" id="loader">
+        <div class="dot" style="background:var(--accent)"></div>
+        <div class="dot" style="background:var(--accent)"></div>
+        <div class="dot" style="background:var(--accent2)"></div> Loading...
+      </div>
+      <div id="mapContainer">
+        <div class="panel-title" style="margin-bottom:8px;">🗺️ Location Map Display</div>
+        <div style="display:flex; flex-wrap:wrap; gap:16px; margin-bottom:12px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px; font-size:0.85rem; line-height:1.5;">
+          <div style="font-weight:600; width:100%; border-bottom:1px solid #cbd5e1; padding-bottom:4px; margin-bottom:4px; color:var(--accent); display:flex; align-items:center; gap:6px;">🗺️ Map Layer & Overlay Controls</div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-weight:500; color:var(--text2); margin-right:4px;">Show Files:</span>
+            <div id="locCheckboxes" style="display:flex; flex-wrap:wrap; gap:12px;"></div>
+          </div>
+          <div style="border-left:1px solid #cbd5e1; padding-left:12px; margin-left:4px; display:flex; flex-wrap:wrap; gap:12px;">
+            <div style="display:flex; align-items:center; gap:6px;">
+              <input type="checkbox" id="chkShowSelectedEC" checked onchange="initLeafletMap()" style="width:auto; margin:0; cursor:pointer;">
+              <label for="chkShowSelectedEC" style="margin:0; font-weight:600; color:#6c63ff; cursor:pointer;">📍 Selected ECMWF Point</label>
+            </div>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <input type="checkbox" id="chkShowAllEC" checked onchange="initLeafletMap()" style="width:auto; margin:0; cursor:pointer;">
+              <label for="chkShowAllEC" style="margin:0; font-weight:500; color:#4f46e5; cursor:pointer;">🌐 All ECMWF Grid Points</label>
+            </div>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <input type="checkbox" id="chkShowSelectedDL" checked onchange="initLeafletMap()" style="width:auto; margin:0; cursor:pointer;">
+              <label for="chkShowSelectedDL" style="margin:0; font-weight:600; color:#0d9488; cursor:pointer;">📍 Selected Delft3D Station</label>
+            </div>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <input type="checkbox" id="chkShowAllDL" checked onchange="initLeafletMap()" style="width:auto; margin:0; cursor:pointer;">
+              <label for="chkShowAllDL" style="margin:0; font-weight:500; color:#0f766e; cursor:pointer;">🏠 All Delft3D Stations</label>
+            </div>
+          </div>
+        </div>
+        <div id="locMap"></div>
+      </div>
+      <div id="tsPlot"></div>
+      <div class="stats-grid" id="statsGrid" style="display:none"></div>
+      <div id="scatterPlot" style="display:none"></div>
+    </main>
+  </div>
+  <script>
+    let META = {};
+
+    function deepMerge(target, src) {
+      var out = Object.assign({}, target);
+      for (var key in src) {
+        if (src[key] && typeof src[key] === 'object' && !Array.isArray(src[key]) && target[key] && typeof target[key] === 'object') {
+          out[key] = deepMerge(target[key], src[key]);
+        } else {
+          out[key] = src[key];
+        }
+      }
+      return out;
+    }
+
+    function getLayout(extra) {
+      var base = {
+        paper_bgcolor: '#ffffff', plot_bgcolor: '#ffffff',
+        font: { family: 'Inter', color: '#1e293b', size: 12 },
+        xaxis: { gridcolor: '#e2e8f0', linecolor: '#cbd5e1', title: 'Time', tickfont: { color: '#64748b' } },
+        yaxis: { gridcolor: '#e2e8f0', linecolor: '#cbd5e1', tickfont: { color: '#64748b' } },
+        legend: { bgcolor: 'rgba(255,255,255,0.9)', font: { size: 11, color: '#1e293b' }, orientation: 'h', yanchor: 'bottom', y: 1.02, xanchor: 'center', x: 0.5 },
+        margin: { t: 80, r: 30, b: 50, l: 60 },
+        hovermode: 'x unified'
+      };
+      return extra ? deepMerge(base, extra) : base;
+    }
+
+    async function init() {
+      try {
+        showLoader(true);
+        // 1. Fetch available files
+        const resFiles = await fetch('/api/files');
+        const fileData = await resFiles.json();
+        console.log('Files loaded:', fileData);
+
+        const ecFile = document.getElementById('ecFile');
+        const dlFile = document.getElementById('dlFile');
+
+        // Clear old options
+        ecFile.innerHTML = '';
+        dlFile.innerHTML = '';
+
+        fileData.files.forEach(f => {
+          ecFile.add(new Option(f.name, f.path));
+          dlFile.add(new Option(f.name, f.path));
+        });
+
+        // Set selected values based on active ones
+        if (fileData.active.ecmwf) ecFile.value = fileData.active.ecmwf;
+        if (fileData.active.delft3d) dlFile.value = fileData.active.delft3d;
+
+        // 2. Fetch metadata for loaded files
+        await refreshMetadata();
+
+        // 3. Check and load locations file if exists
+        await checkLocMap();
+
+        // Initialize empty plot
+        Plotly.newPlot('tsPlot', [], getLayout({ title: { text: 'Click "Compare Time Series" to begin', font: { size: 14, color: '#64748b' } } }), { responsive: true });
+        showLoader(false);
+      } catch (e) {
+        showLoader(false);
+        console.error('Init error:', e);
+      }
+    }
+
+    async function refreshMetadata() {
+      const r = await fetch('/api/metadata');
+      META = await r.json();
+      console.log('Metadata loaded:', META);
+
+      if (META.error) {
+        alert("Error loading datasets: " + META.error);
+        return;
+      }
+
+      const ecVar = document.getElementById('ecVar');
+      const dlVar = document.getElementById('dlVar');
+      const ecGrid = document.getElementById('ecGrid');
+      const dlStn = document.getElementById('dlStation');
+
+      // Clear old selects
+      ecVar.innerHTML = '';
+      dlVar.innerHTML = '';
+      ecGrid.innerHTML = '';
+      dlStn.innerHTML = '';
+
+      for (const [k, v] of Object.entries(META.ecmwf.variables)) {
+        ecVar.add(new Option(v.long_name + ' (' + k + ') [' + v.units + ']', k));
+      }
+      for (const [k, v] of Object.entries(META.delft3d.variables)) {
+        dlVar.add(new Option(v.long_name + ' (' + k + ') [' + v.units + ']', k));
+      }
+      META.ecmwf.grid_points.forEach(function (g) {
+        ecGrid.add(new Option(g.label, g.lat + ',' + g.lon));
+      });
+      META.delft3d.stations.forEach(function (s) {
+        dlStn.add(new Option(s.label, s.index));
+      });
+
+      document.getElementById('tMin').value = META.overlap.min.slice(0, 16);
+      document.getElementById('tMax').value = META.overlap.max.slice(0, 16);
+    }
+
+    async function loadSelectedFiles() {
+      try {
+        showLoader(true);
+        const ecmwfPath = document.getElementById('ecFile').value;
+        const delft3dPath = document.getElementById('dlFile').value;
+
+        console.log('Requesting to load:', ecmwfPath, delft3dPath);
+
+        const r = await fetch('/api/load_files', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            ecmwf_path: ecmwfPath,
+            delft3d_path: delft3dPath
+          })
+        });
+        const res = await r.json();
+        if (res.error) {
+          alert("Error: " + res.error);
+          showLoader(false);
+          return;
+        }
+
+        console.log('Load response:', res);
+        await refreshMetadata();
+
+        // Clear plots/stats
+        document.getElementById('statsGrid').style.display = 'none';
+        document.getElementById('scatterPlot').style.display = 'none';
+        Plotly.newPlot('tsPlot', [], getLayout({ title: { text: 'Click "Compare Time Series" to begin', font: { size: 14, color: '#64748b' } } }), { responsive: true });
+        showLoader(false);
+      } catch (e) {
+        showLoader(false);
+        console.error('Failed to load selected files:', e);
+        alert('Failed to load selected files: ' + e.message);
+      }
+    }
+
+    function getParams() {
+      var parts = document.getElementById('ecGrid').value.split(',');
+      return new URLSearchParams({
+        ec_var: document.getElementById('ecVar').value,
+        ec_lat: parts[0], ec_lon: parts[1],
+        dl_var: document.getElementById('dlVar').value,
+        dl_station: document.getElementById('dlStation').value,
+        t_min: document.getElementById('tMin').value,
+        t_max: document.getElementById('tMax').value
+      });
+    }
+
+    let LAST_TS_DATA = null;
+
+    function showLoader(on) { document.getElementById('loader').classList.toggle('active', on); }
+
+    async function fetchTimeseries() {
+      try {
+        showLoader(true);
+        var url = '/api/timeseries?' + getParams().toString();
+        console.log('Fetching:', url);
+        var r = await fetch(url);
+        var d = await r.json();
+        console.log('Data received, ecmwf points:', d.ecmwf ? d.ecmwf.values.length : 0, 'delft3d points:', d.delft3d ? d.delft3d.values.length : 0);
+        showLoader(false);
+
+        var traces = [];
+        var showDataLabels = document.getElementById('chkDataLabels').checked;
+
+        if (d.ecmwf && d.ecmwf.times && d.ecmwf.times.length > 0) {
+          var customEcLeg = document.getElementById('lblEcLegend').value.trim();
+          var ecName = customEcLeg || ('ECMWF: ' + d.ecmwf.long_name + ' @ ' + d.ecmwf.location);
+          
+          var customEcPoint = document.getElementById('lblEcPoint').value.trim();
+          var ecText = d.ecmwf.values.map((v, idx) => {
+            if (v === null) return '';
+            return customEcPoint ? customEcPoint + ' (' + (idx + 1) + ')' : '';
+          });
+
+          var ecTrace = {
+            x: d.ecmwf.times,
+            y: d.ecmwf.values,
+            name: ecName,
+            line: { color: '#6c63ff', width: 2 },
+            type: 'scatter',
+            mode: showDataLabels ? 'lines+markers+text' : 'lines'
+          };
+
+          if (customEcPoint) {
+            ecTrace.hovertext = ecText;
+            ecTrace.hovertemplate = '<b>%{hovertext}</b><br>Time: %{x}<br>Value: %{y:.2f}<extra></extra>';
+          } else {
+            ecTrace.hovertemplate = '<b>' + ecName + '</b><br>Time: %{x}<br>Value: %{y:.2f}<extra></extra>';
+          }
+
+          if (showDataLabels) {
+            ecTrace.text = d.ecmwf.values.map(v => v !== null ? v.toFixed(2) : '');
+            ecTrace.textposition = 'top center';
+          }
+          traces.push(ecTrace);
+        }
+        if (d.delft3d && d.delft3d.times && d.delft3d.times.length > 0) {
+          var customDlLeg = document.getElementById('lblDlLegend').value.trim();
+          var dlName = customDlLeg || ('Delft3D: ' + d.delft3d.long_name + ' @ ' + d.delft3d.location);
+          
+          var customDlPoint = document.getElementById('lblDlPoint').value.trim();
+          var dlText = d.delft3d.values.map((v, idx) => {
+            if (v === null) return '';
+            return customDlPoint ? customDlPoint + ' (' + (idx + 1) + ')' : '';
+          });
+
+          var dlTrace = {
+            x: d.delft3d.times,
+            y: d.delft3d.values,
+            name: dlName,
+            line: { color: '#00d4aa', width: 2 },
+            type: 'scatter',
+            mode: showDataLabels ? 'lines+markers+text' : 'lines'
+          };
+
+          if (customDlPoint) {
+            dlTrace.hovertext = dlText;
+            dlTrace.hovertemplate = '<b>%{hovertext}</b><br>Time: %{x}<br>Value: %{y:.2f}<extra></extra>';
+          } else {
+            dlTrace.hovertemplate = '<b>' + dlName + '</b><br>Time: %{x}<br>Value: %{y:.2f}<extra></extra>';
+          }
+
+          if (showDataLabels) {
+            dlTrace.text = d.delft3d.values.map(v => v !== null ? v.toFixed(2) : '');
+            dlTrace.textposition = 'top center';
+          }
+          traces.push(dlTrace);
+        }
+
+        var yTitle = '';
+        if (d.ecmwf) yTitle = d.ecmwf.long_name + ' [' + d.ecmwf.units + ']';
+        if (d.delft3d && (!d.ecmwf || d.delft3d.var !== d.ecmwf.var)) {
+          yTitle = yTitle ? yTitle + ' / ' + d.delft3d.long_name + ' [' + d.delft3d.units + ']' : d.delft3d.long_name + ' [' + d.delft3d.units + ']';
+        }
+
+        var customTitle = document.getElementById('lblTitle').value.trim();
+        var titleText = customTitle || 'Time Series Comparison';
+
+        var customX = document.getElementById('lblX').value.trim();
+        var xAxisText = customX || 'Time';
+
+        var customY = document.getElementById('lblY').value.trim();
+        var yAxisText = customY || yTitle;
+
+        // Store data for export
+        LAST_TS_DATA = d;
+        document.getElementById('exportPanel').style.display = 'block';
+
+        console.log('Plotting', traces.length, 'traces');
+        Plotly.newPlot('tsPlot', traces, getLayout({
+          title: { text: titleText, font: { size: 15 } },
+          xaxis: { title: xAxisText },
+          yaxis: { gridcolor: '#e2e8f0', linecolor: '#cbd5e1', title: yAxisText }
+        }), { responsive: true });
+      } catch (e) {
+        showLoader(false);
+        console.error('Plot error:', e);
+        alert('Error: ' + e.message);
+      }
+    }
+
+    function exportCSV() {
+      if (!LAST_TS_DATA) { alert('No data to export. Plot a time series first.'); return; }
+
+      var intervalMin = parseInt(document.getElementById('exportInterval').value) || 60;
+      var params = getParams();
+      params.set('interval_minutes', intervalMin);
+
+      var url = '/api/export?' + params.toString();
+
+      // Trigger download via hidden link
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'timeseries_export_' + intervalMin + 'min.csv';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+
+    async function fetchStats() {
+      try {
+        showLoader(true);
+        var r = await fetch('/api/statistics?' + getParams().toString());
+        var d = await r.json();
+        showLoader(false);
+        if (d.error) { alert(d.error); return; }
+        var sg = document.getElementById('statsGrid');
+        sg.style.display = 'grid';
+        sg.innerHTML =
+          '<div class="stat-card"><div class="val">' + d.bias + '</div><div class="lbl">Bias (ECMWF−D3D)</div></div>' +
+          '<div class="stat-card"><div class="val">' + d.rmse + '</div><div class="lbl">RMSE</div></div>' +
+          '<div class="stat-card"><div class="val">' + d.mae + '</div><div class="lbl">MAE</div></div>' +
+          '<div class="stat-card"><div class="val">' + (d.correlation != null ? d.correlation : 'N/A') + '</div><div class="lbl">Correlation</div></div>' +
+          '<div class="stat-card"><div class="val">' + d.n_points + '</div><div class="lbl">Data Points</div></div>';
+        // Scatter
+        var sp = document.getElementById('scatterPlot');
+        sp.style.display = 'block';
+        var mn = Math.min.apply(null, d.scatter.ecmwf.concat(d.scatter.delft3d));
+        var mx = Math.max.apply(null, d.scatter.ecmwf.concat(d.scatter.delft3d));
+        Plotly.newPlot('scatterPlot', [
+          {
+            x: d.scatter.ecmwf, y: d.scatter.delft3d, mode: 'markers', type: 'scatter',
+            marker: { color: 'rgba(79,70,229,.6)', size: 5 }, name: 'Data'
+          },
+          { x: [mn, mx], y: [mn, mx], mode: 'lines', line: { color: '#ef4444', dash: 'dash', width: 1.5 }, name: '1:1 Line' }
+        ], getLayout({
+          title: { text: 'Scatter Plot (ECMWF vs Delft3D)', font: { size: 15 } },
+          xaxis: { gridcolor: '#e2e8f0', linecolor: '#cbd5e1', title: 'ECMWF' },
+          yaxis: { gridcolor: '#e2e8f0', linecolor: '#cbd5e1', title: 'Delft3D', scaleanchor: 'x' }
+        }), { responsive: true });
+      } catch (e) {
+        showLoader(false);
+        console.error('Stats error:', e);
+        alert('Error: ' + e.message);
+      }
+    }
+
+    function toggleLabelPanel() {
+      var panel = document.getElementById('labelsPanel');
+      var btn = document.getElementById('btnToggleLabels');
+      if (panel.style.display === 'none') {
+        panel.style.display = 'block';
+        btn.innerText = '🔼 Hide Custom Labels';
+      } else {
+        panel.style.display = 'none';
+        btn.innerText = '⚙️ Customize Labels';
+      }
+    }
+
+    let MAP = null;
+    let MAP_MARKERS = [];
+    let LOC_FILES_DATA = {};
+
+    function onGridOrStationChange() {
+      if (document.getElementById('mapContainer').style.display === 'block') {
+        initLeafletMap();
+      }
+    }
+
+    function selectLocationOnMap(lat, lon) {
+      // Find nearest ECMWF grid point
+      if (META.ecmwf && META.ecmwf.grid_points && META.ecmwf.grid_points.length > 0) {
+        let bestDist = Infinity;
+        let bestVal = '';
+        META.ecmwf.grid_points.forEach(gp => {
+          const d = Math.pow(gp.lat - lat, 2) + Math.pow(gp.lon - lon, 2);
+          if (d < bestDist) { bestDist = d; bestVal = gp.lat + ',' + gp.lon; }
+        });
+        document.getElementById('ecGrid').value = bestVal;
+      }
+
+      // Find nearest Delft3D station
+      if (META.delft3d && META.delft3d.stations && META.delft3d.stations.length > 0) {
+        let bestDist = Infinity;
+        let bestIdx = 0;
+        META.delft3d.stations.forEach(stn => {
+          const d = Math.pow(stn.y - lat, 2) + Math.pow(stn.x - lon, 2);
+          if (d < bestDist) { bestDist = d; bestIdx = stn.index; }
+        });
+        document.getElementById('dlStation').value = bestIdx;
+      }
+
+      // Refresh the map to highlight new selections
+      initLeafletMap();
+    }
+
+    async function checkLocMap() {
+      try {
+        const r = await fetch('/api/loc_map');
+        const d = await r.json();
+        if (d.exists && d.files && Object.keys(d.files).length > 0) {
+          LOC_FILES_DATA = d.files;
+          
+          // Generate checkboxes for discovered .loc files
+          const container = document.getElementById('locCheckboxes');
+          container.innerHTML = '';
+          Object.keys(LOC_FILES_DATA).forEach((filename, idx) => {
+            const div = document.createElement('div');
+            div.style.display = 'flex';
+            div.style.alignItems = 'center';
+            div.style.gap = '6px';
+            
+            const chk = document.createElement('input');
+            chk.type = 'checkbox';
+            chk.className = 'chk-loc-file';
+            chk.id = 'chk_loc_' + idx;
+            chk.setAttribute('data-filename', filename);
+            chk.checked = true; // Checked by default
+            chk.style.width = 'auto';
+            chk.style.margin = '0';
+            chk.style.cursor = 'pointer';
+            chk.onchange = initLeafletMap;
+            
+            const lbl = document.createElement('label');
+            lbl.htmlFor = 'chk_loc_' + idx;
+            lbl.innerText = filename;
+            lbl.style.margin = '0';
+            lbl.style.fontWeight = '500';
+            lbl.style.cursor = 'pointer';
+            
+            div.appendChild(chk);
+            div.appendChild(lbl);
+            container.appendChild(div);
+          });
+          
+          document.getElementById('btnToggleMap').style.display = 'block';
+        } else {
+          document.getElementById('btnToggleMap').style.display = 'none';
+        }
+      } catch (e) {
+        console.error('Error checking loc map:', e);
+      }
+    }
+
+    function toggleMap() {
+      const container = document.getElementById('mapContainer');
+      const btn = document.getElementById('btnToggleMap');
+      if (container.style.display === 'none' || container.style.display === '') {
+        container.style.display = 'block';
+        btn.innerText = '🔼 Hide Locations Map';
+        initLeafletMap();
+      } else {
+        container.style.display = 'none';
+        btn.innerText = '🗺️ Show Locations Map';
+      }
+    }
+
+    function initLeafletMap() {
+      // Initialize map object if not yet done
+      if (!MAP) {
+        // Center default at a general location
+        MAP = L.map('locMap').setView([22.3, 91.2], 9);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 19,
+          attribution: '© OpenStreetMap contributors'
+        }).addTo(MAP);
+
+        // Click on empty map area to select nearest location in both sources
+        MAP.on('click', function(e) {
+          selectLocationOnMap(e.latlng.lat, e.latlng.lng);
+        });
+      }
+
+      // Clear existing markers
+      MAP_MARKERS.forEach(m => MAP.removeLayer(m));
+      MAP_MARKERS = [];
+
+      const colors = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6'];
+      let colorIdx = 0;
+
+      // 1. Draw points from checked .loc files
+      const chkboxes = document.querySelectorAll('.chk-loc-file');
+      chkboxes.forEach(chk => {
+        if (chk.checked) {
+          const filename = chk.getAttribute('data-filename');
+          const fileData = LOC_FILES_DATA[filename];
+          if (fileData && fileData.points) {
+            const color = colors[colorIdx % colors.length];
+            colorIdx++;
+
+            fileData.points.forEach(p => {
+              // Circle marker for file point
+              const marker = L.circleMarker([p.lat, p.lon], {
+                radius: 6,
+                color: color,
+                fillColor: color,
+                fillOpacity: 0.8
+              }).addTo(MAP);
+
+              marker.bindPopup(`<b>${filename} - Point ${p.index}</b><br>Lon: ${p.lon.toFixed(5)}<br>Lat: ${p.lat.toFixed(5)}`);
+              marker.on('click', function() { selectLocationOnMap(p.lat, p.lon); });
+              MAP_MARKERS.push(marker);
+
+              // Text label
+              let latOffset = 0.006;
+              let lonOffset = 0.006;
+              if (p.index === 5) {
+                latOffset = 0.020;
+                lonOffset = 0.020;
+              }
+              const labelMarker = L.marker([p.lat + latOffset, p.lon + lonOffset], {
+                icon: L.divIcon({
+                  className: 'map-marker-label',
+                  html: `<span style="color:${color};">${p.index}</span>`,
+                  iconSize: [40, 20],
+                  iconAnchor: [20, 10]
+                })
+              }).addTo(MAP);
+              MAP_MARKERS.push(labelMarker);
+            });
+          }
+        }
+      });
+
+      // 2. Draw ALL ECMWF grid points if checked
+      if (document.getElementById('chkShowAllEC').checked && META.ecmwf && META.ecmwf.grid_points) {
+        const selectedEcVal = document.getElementById('ecGrid').value;
+        META.ecmwf.grid_points.forEach(gp => {
+          const gpVal = gp.lat + ',' + gp.lon;
+          const isSelected = (gpVal === selectedEcVal);
+          // Smaller semi-transparent marker for non-selected, skip selected (drawn later with highlight)
+          const marker = L.circleMarker([gp.lat, gp.lon], {
+            radius: isSelected ? 0 : 5,
+            color: '#818cf8',
+            fillColor: '#818cf8',
+            fillOpacity: 0.5,
+            weight: 1
+          }).addTo(MAP);
+
+          marker.bindPopup(`<b>ECMWF Grid</b><br>Lat: ${gp.lat.toFixed(4)}°N<br>Lon: ${gp.lon.toFixed(4)}°E`);
+          marker.on('click', function() { selectLocationOnMap(gp.lat, gp.lon); });
+          MAP_MARKERS.push(marker);
+        });
+      }
+
+      // 3. Draw ALL Delft3D stations if checked
+      if (document.getElementById('chkShowAllDL').checked && META.delft3d && META.delft3d.stations) {
+        const selectedDlVal = document.getElementById('dlStation').value;
+        META.delft3d.stations.forEach(stn => {
+          const isSelected = (String(stn.index) === selectedDlVal);
+          const marker = L.circleMarker([stn.y, stn.x], {
+            radius: isSelected ? 0 : 5,
+            color: '#5eead4',
+            fillColor: '#5eead4',
+            fillOpacity: 0.5,
+            weight: 1
+          }).addTo(MAP);
+
+          marker.bindPopup(`<b>Delft3D Stn ${stn.index + 1}</b><br>Name: ${stn.name}<br>Lat: ${stn.y.toFixed(4)}°N<br>Lon: ${stn.x.toFixed(4)}°E`);
+          marker.on('click', function() { selectLocationOnMap(stn.y, stn.x); });
+          MAP_MARKERS.push(marker);
+
+          // Station index label
+          const labelMarker = L.marker([stn.y + 0.004, stn.x + 0.004], {
+            icon: L.divIcon({
+              className: 'map-marker-label',
+              html: `<span style="color:#0f766e; font-size:9pt;">${stn.index + 1}</span>`,
+              iconSize: [30, 16],
+              iconAnchor: [15, 8]
+            })
+          }).addTo(MAP);
+          MAP_MARKERS.push(labelMarker);
+        });
+      }
+
+      // 4. Draw Selected ECMWF grid point if checked (highlighted)
+      if (document.getElementById('chkShowSelectedEC').checked) {
+        const ecVal = document.getElementById('ecGrid').value;
+        if (ecVal) {
+          const parts = ecVal.split(',');
+          const lat = parseFloat(parts[0]);
+          const lon = parseFloat(parts[1]);
+          if (!isNaN(lat) && !isNaN(lon)) {
+            const marker = L.circleMarker([lat, lon], {
+              radius: 9,
+              color: '#4f46e5',
+              fillColor: '#4f46e5',
+              fillOpacity: 0.9,
+              weight: 3
+            }).addTo(MAP);
+            
+            marker.bindPopup(`<b>Selected ECMWF Grid Point</b><br>Lat: ${lat.toFixed(4)}°N<br>Lon: ${lon.toFixed(4)}°E`);
+            marker.on('click', function() { selectLocationOnMap(lat, lon); });
+            MAP_MARKERS.push(marker);
+
+            const labelMarker = L.marker([lat + 0.008, lon + 0.008], {
+              icon: L.divIcon({
+                className: 'map-marker-label',
+                html: `<span style="color:#4f46e5; border: 1px solid #4f46e5; border-radius:4px; padding:2px 4px; background:#fff;">ECMWF</span>`,
+                iconSize: [80, 20],
+                iconAnchor: [40, 10]
+              })
+            }).addTo(MAP);
+            MAP_MARKERS.push(labelMarker);
+          }
+        }
+      }
+
+      // 5. Draw Selected Delft3D Station point if checked (highlighted)
+      if (document.getElementById('chkShowSelectedDL').checked) {
+        const dlVal = document.getElementById('dlStation').value;
+        if (dlVal !== "" && META.delft3d && META.delft3d.stations) {
+          const idx = parseInt(dlVal);
+          const stn = META.delft3d.stations.find(s => s.index === idx);
+          if (stn) {
+            const lat = stn.y;
+            const lon = stn.x;
+            const marker = L.circleMarker([lat, lon], {
+              radius: 9,
+              color: '#0d9488',
+              fillColor: '#0d9488',
+              fillOpacity: 0.9,
+              weight: 3
+            }).addTo(MAP);
+            
+            marker.bindPopup(`<b>Selected Delft3D Station</b><br>Name: ${stn.name}<br>Lat: ${lat.toFixed(4)}°N<br>Lon: ${lon.toFixed(4)}°E`);
+            marker.on('click', function() { selectLocationOnMap(lat, lon); });
+            MAP_MARKERS.push(marker);
+
+            const labelMarker = L.marker([lat + 0.008, lon - 0.008], {
+              icon: L.divIcon({
+                className: 'map-marker-label',
+                html: `<span style="color:#0d9488; border: 1px solid #0d9488; border-radius:4px; padding:2px 4px; background:#fff;">Delft3D</span>`,
+                iconSize: [80, 20],
+                iconAnchor: [40, 10]
+              })
+            }).addTo(MAP);
+            MAP_MARKERS.push(labelMarker);
+          }
+        }
+      }
+
+      // Auto-fit map bounds to encompass all active markers
+      if (MAP_MARKERS.length > 0) {
+        const group = new L.featureGroup(MAP_MARKERS);
+        MAP.fitBounds(group.getBounds().pad(0.15));
+      }
+
+      // Force Map tile redraw
+      setTimeout(() => {
+        MAP.invalidateSize();
+      }, 200);
+    }
+
+    init();
+  </script>
+</body>
+
+</html>
